@@ -6,10 +6,11 @@ import os
 
 # transform에 resize 추가하지 마셈
 class MultiResDataset(Dataset):
-    def __init__(self, root_dir, transform=None, resolution=8):
+    def __init__(self, root_dir, transform=None, llvl=8):
+        # layer level
         self.root_dir = root_dir
         self.transform = transform
-        self.resolution = resolution
+        self.llvl = llvl
     
     def __len__(self):
         return 70000
