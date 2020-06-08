@@ -1,5 +1,3 @@
 # SGAN
 StyleGAN
-
-## Reference
-https://github.com/NVlabs/stylegan
+original repository: https://github.com/NVlabs/stylegan
