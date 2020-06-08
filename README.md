@@ -14,5 +14,14 @@ cuda version: 10.0<br/>
 <code>
 conda install torch=1.2.0
 conda install torchvision=0.4.0
+conda install requests
+conda install scipy
 </code>
 </pre>
+
+## Download FFHQ Dataset
+<pre>
+<code>
+python download_ffhq.py --json --images
+</pre>
+</code>
