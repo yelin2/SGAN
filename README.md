@@ -10,7 +10,6 @@ torchvision: 0.4.0<br/>
 cuda version: 10.0<br/>
 김인영 v1.0<br/>
 이예린 v0.9<br/>
-#include<pytorch><br/>
 ### Linux set up
 <pre>
 <code>
