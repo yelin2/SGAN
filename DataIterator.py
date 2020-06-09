@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 
 
 class DataIterator:
-    def __init__(self, dataset, minibatch=64, shuffle=True, num_workers=4):
+    def __init__(self, dataset, minibatch=1, shuffle=False, num_workers=0):
         self.dataset = dataset
         self.loader = DataLoader(
             dataset, minibatch, num_workers=num_workers, shuffle=shuffle)
