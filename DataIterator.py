@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 
 
 class DataIterator:
-    def __init__(self, dataset, minibatch=64, shuffle=True, num_workers=4):
+    def __init__(self, dataset, minibatch=1, shuffle=False, num_workers=0):
         self.dataset = dataset
         self.loader = DataLoader(
             dataset, minibatch, num_workers=num_workers, shuffle=shuffle)
@@ -10,9 +10,9 @@ class DataIterator:
 
     def __next__(self):
         try:
-            data, target = next(self._iter)
+            data = next(self._iter)
         except StopIteration:
             self._iter = iter(self.loader)
-            data, target = next(self._iter)
+            data = next(self._iter)
 
-        return data, target
+        return data

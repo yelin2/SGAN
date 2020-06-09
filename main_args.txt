@@ -1,0 +1,27 @@
+"""
+args에서 받아야할 파라미터
+root_dir
+transforms
+num_workers: 데이터로딩할 때 사용할 worker 수
+trainer_args: {
+    G,
+    D,
+    G_lr_dict,
+    D_lr_dict,
+    G_minibatch_dict,
+    D_minibatch_dict,
+    initial_llvl,
+    max_llvl,
+    D_opt_param,
+    G_opt_param,
+    stablize_imgs,
+    fade_in_imgs,
+    dataset_args: {
+        root_dir,
+        transforms}, # ToTensor 사용 금지
+    dataloader_args:{
+        shuffle,
+        num_workers
+    }
+}
+"""
