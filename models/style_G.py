@@ -64,12 +64,12 @@ class apply_noise(nn.Module):
         self.weight = torch.randn(feat_size, requires_grad=True)
 
     def forward(self, x, blocks):
-        # make noise
+        # x shape [1, 512, 8, 8]
+        # noise shape [1, 1, resolultion, resolution] [1, 1, 8, 8]
+        # weight shape [1, feat_size, 1, 1] [1, 512, 1, 1]
         noise = torch.randn(size=(1, 1, 2**blocks, 2**blocks))
-        # print(noise.size(),"= [1, 1, 8, 8]")
-        # print(self.weight.size(),"= [8]")
-        # TODO reshape noise
-        # add noise
+        # print('2', self.weight.size())
+        # print('3', noise.size())
         x = x + noise*self.weight.reshape([1, -1, 1, 1])
         return x
 
@@ -99,39 +99,49 @@ class AdaIN(nn.Module):
  
 
 class block(nn.Module):
+    '''
+    Arguments
+        blocks: blocks number. 3: block3
+        dlatent_size: input feature map size
+    '''
     def __init__(self, blocks=3, dlatent_size = 512):
         super().__init__()
         self.blocks = blocks
         self.dlatent_size = dlatent_size
         self.feat_size = min(int(8192/(2**blocks)), 512)
-        self.apply_noise = apply_noise(self.feat_size)
-
+        self.out_feat_size = min(int(8192/(2**(blocks+1))), 512)
+        
+        self.apply_noise = apply_noise(self.out_feat_size)
+        self.apply_noise1 = apply_noise(self.out_feat_size)
         if blocks != 3:
-            # self.conv1 = nn.Conv2d()
-            pass
+            # tf는 filetr size를 정해줄 수 있는데 pytorch는 padding, output_padding 사용
+            self.conv1 = nn.ConvTranspose2d(in_channels=self.feat_size, out_channels=self.out_feat_size, kernel_size=3, stride=2, padding=1, output_padding=1)
         else:
             self.const = torch.ones((1, dlatent_size, 2**blocks, 2**blocks), requires_grad=True)
-        self.AdaIN = AdaIN(self.dlatent_size, self.feat_size)
-        self.conv2 = nn.Conv2d(in_channels=dlatent_size, out_channels=dlatent_size, kernel_size=3, padding=1) 
+        self.AdaIN = AdaIN(self.dlatent_size, self.out_feat_size)
+        self.AdaIN1 = AdaIN(self.dlatent_size, self.out_feat_size)        
+        self.conv2 = nn.Conv2d(in_channels=self.out_feat_size, out_channels=self.out_feat_size, kernel_size=3, padding=1) 
         self.lrelu = nn.LeakyReLU(0.2)
         
 
     def forward(self, w, x = None):
         if self.blocks != 3 or x != None:
             x = self.conv1(x)
+            # print(x.size())
         else:
+            # print(x.size(), "= [1, 512, 8, 8]")
             x = self.const
-        # print(x.size(), "= [1, 512, 8, 8]")
+        # print('1', x.size())
         x = self.apply_noise(x, blocks=self.blocks)
         x = normalize(self.lrelu(x))
-        x = self.AdaIN(x, w)
-        '''
+        x = self.AdaIN(x, w[:,0])
         
         x = self.conv2(x)
-        x = self.apply_noise()
+        # print(x.size())
+        x = self.apply_noise1(x, blocks=self.blocks)
         x = normalize(self.lrelu(x))
-        x = self.style_mod2(self.instance_norm(x))
-        '''
+        x = self.AdaIN1(x, w[:,1])
+        
         return x
 
 class G_synthesis(nn.Module):
@@ -159,51 +169,47 @@ class G_synthesis(nn.Module):
         self.blur_filter = blur_filter
 
         self.block1 = block(blocks=3, dlatent_size=512)
-
+        self.block2 = block(blocks=4)
+        self.block3 = block(blocks=5)
+        self.block4 = block(blocks=6)
+        self.block5 = block(blocks=7)
+        self.block6 = block(blocks=8)
+        self.block7 = block(blocks=9)
+        
     def forward(self, dlatents_in, layer_level, noise_in=None):
         '''
         Arguments
             dlatents_in: style vector w [b, #layers(14), 512]
             noise_in: noise list len: #layers
         '''
-        images_out = 3
-        # 8x8
-        if layer_level == 3:
-            # w [b, 14, 512]에서 [b, 2, 512]만 w로 넘겨줌
-            images_out = self.block1(w=dlatents_in[:, 0])
-            return images_out
-        '''
-        # 16x16
-            # do block
-        if layer_level == 4:
-            # fade_in
-            return images_out
-
-        # 32x32
-        if layer_level == 5:
-            # fade_in
-            return images_out
+        feat1 = self.block1(w=dlatents_in[:, 0:2])
+        print("block1 finished", feat1.size())
+        if layer_level == 3: return feat1
         
-        # 64x64
-        if layer_level == 6:
-            # fade_in
-            return images_out
+        feat2 = self.block2(w=dlatents_in[:, 2:4], x=feat1)
+        print("block2 finished", feat2.size())
+        if layer_level == 4: return feat2
+        
+        feat3 = self.block3(w=dlatents_in[:, 4:6], x=feat2)
+        print("block3 finished", feat3.size())
+        if layer_level == 5: return feat3
+        
+        feat4 = self.block4(w=dlatents_in[:, 6:8], x=feat3)
+        print("block4 finished", feat4.size())
+        if layer_level == 6: return feat4
 
-        # 128x128
-        if layer_level == 7:
-            # fade_in
-            return images_out
+        feat5 = self.block5(w=dlatents_in[:, 8:10], x=feat4)
+        print("block5 finished", feat5.size())
+        if layer_level == 7: return feat5
 
-        # 256x256
-        if layer_level == 8:
-            # fade_in
-            return images_out
+        feat6 = self.block6(w=dlatents_in[:, 10:12], x=feat5)
+        print("block6 finished", feat6.size())
+        if layer_level == 8: return feat6
 
-        # 512x512
-        if layer_level == 9:
-            # fade_in
-            return images_out
-        '''
+        feat7 = self.block7(w=dlatents_in[:, 12:14], x=feat6)
+        print("block7 finished", feat7.size())
+        if layer_level == 9: return feat7
+        
 
-        return images_out
+        return 1
 
