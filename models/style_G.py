@@ -68,8 +68,6 @@ class apply_noise(nn.Module):
         # noise shape [1, 1, resolultion, resolution] [1, 1, 8, 8]
         # weight shape [1, feat_size, 1, 1] [1, 512, 1, 1]
         noise = torch.randn(size=(1, 1, 2**blocks, 2**blocks))
-        # print('2', self.weight.size())
-        # print('3', noise.size())
         x = x + noise*self.weight.reshape([1, -1, 1, 1])
         return x
 
@@ -89,7 +87,6 @@ class AdaIN(nn.Module):
         style = self.transformation(dlatent)
         # style shape [b, 2, feat_size, 1, 1] [4, 2, 512, 512, 1, 1]
         style = style.reshape([-1, 2, self.feat_size] + [1]*2)
-        # style 적용
         return x * (style[:,0]+1) + style[:,1]
 
     def forward(self, x, dlatent):
@@ -110,16 +107,16 @@ class block(nn.Module):
         self.dlatent_size = dlatent_size
         self.feat_size = min(int(8192/(2**blocks)), 512)
         self.out_feat_size = min(int(8192/(2**(blocks+1))), 512)
-        
-        self.apply_noise = apply_noise(self.out_feat_size)
-        self.apply_noise1 = apply_noise(self.out_feat_size)
+
         if blocks != 3:
-            # tf는 filetr size를 정해줄 수 있는데 pytorch는 padding, output_padding 사용
             self.conv1 = nn.ConvTranspose2d(in_channels=self.feat_size, out_channels=self.out_feat_size, kernel_size=3, stride=2, padding=1, output_padding=1)
         else:
             self.const = torch.ones((1, dlatent_size, 2**blocks, 2**blocks), requires_grad=True)
-        self.AdaIN = AdaIN(self.dlatent_size, self.out_feat_size)
-        self.AdaIN1 = AdaIN(self.dlatent_size, self.out_feat_size)        
+
+        self.apply_noise1 = apply_noise(self.out_feat_size)
+        self.apply_noise2 = apply_noise(self.out_feat_size)
+        self.AdaIN1 = AdaIN(self.dlatent_size, self.out_feat_size)
+        self.AdaIN2 = AdaIN(self.dlatent_size, self.out_feat_size)        
         self.conv2 = nn.Conv2d(in_channels=self.out_feat_size, out_channels=self.out_feat_size, kernel_size=3, padding=1) 
         self.lrelu = nn.LeakyReLU(0.2)
         
@@ -127,20 +124,17 @@ class block(nn.Module):
     def forward(self, w, x = None):
         if self.blocks != 3 or x != None:
             x = self.conv1(x)
-            # print(x.size())
         else:
-            # print(x.size(), "= [1, 512, 8, 8]")
             x = self.const
-        # print('1', x.size())
-        x = self.apply_noise(x, blocks=self.blocks)
-        x = normalize(self.lrelu(x))
-        x = self.AdaIN(x, w[:,0])
-        
-        x = self.conv2(x)
-        # print(x.size())
+
         x = self.apply_noise1(x, blocks=self.blocks)
         x = normalize(self.lrelu(x))
-        x = self.AdaIN1(x, w[:,1])
+        x = self.AdaIN1(x, w[:,0])
+        
+        x = self.conv2(x)
+        x = self.apply_noise2(x, blocks=self.blocks)
+        x = normalize(self.lrelu(x))
+        x = self.AdaIN2(x, w[:,1])
         
         return x
 
