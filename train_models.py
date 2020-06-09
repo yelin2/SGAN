@@ -15,7 +15,7 @@ def main():
     latent = torch.randn((4, 512))
     # res = G_parallel(torch.from_numpy(latent).float())
     res = G(latent.float())
-    res1 = G_syn(res, layer_level=9)
+    res1 = G_syn(res, layer_level=9.7)
     print(res.shape)
     print(res1.shape)
 

@@ -138,6 +138,21 @@ class block(nn.Module):
         
         return x
 
+class FadeIN(nn.Module):
+    def __init__(self, blocks, num_channels):
+        super().__init__()
+        self.feat_size = min(int(8192/(2**(blocks+1))), 512)
+        self.torgb = nn.Conv2d(in_channels=self.feat_size, out_channels=num_channels, kernel_size=1)
+
+    def forward(self, feat_ori, add_img, layer_level):
+        ori_img = self.torgb(feat_ori)
+        if layer_level - int(layer_level) > 0.5:
+            alpha = 1
+        else:
+            alpha = 2*(layer_level - int(layer_level))
+        faded_img = alpha*(ori_img-add_img) + add_img
+        return faded_img
+
 class G_synthesis(nn.Module):
     def __init__(self, dlatent_size=512, num_channels=3, resolution=512, blur_filter=[1,2,1]):
         '''
@@ -169,40 +184,63 @@ class G_synthesis(nn.Module):
         self.block5 = block(blocks=7)
         self.block6 = block(blocks=8)
         self.block7 = block(blocks=9)
-        
-    def forward(self, dlatents_in, layer_level, noise_in=None):
+
+        self.tr = nn.Conv2d(in_channels=512, out_channels=num_channels, kernel_size=1)
+        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.FadeIN1 = FadeIN(blocks=4, num_channels= self.num_channels)
+        self.FadeIN2 = FadeIN(blocks=5, num_channels= self.num_channels)
+        self.FadeIN3 = FadeIN(blocks=6, num_channels= self.num_channels)
+        self.FadeIN4 = FadeIN(blocks=7, num_channels= self.num_channels)
+        self.FadeIN5 = FadeIN(blocks=8, num_channels= self.num_channels)
+        self.FadeIN6 = FadeIN(blocks=9, num_channels= self.num_channels)
+
+    def forward(self, dlatents_in, layer_level):
         '''
         Arguments
             dlatents_in: style vector w [b, #layers(14), 512]
-            noise_in: noise list len: #layers
+            layer_level: 3~7.9까지 float point
         '''
         feat1 = self.block1(w=dlatents_in[:, 0:2])
         print("block1 finished", feat1.size())
-        if layer_level == 3: return feat1
+        img1 = self.tr(feat1)
+        if layer_level == 3: 
+            return img1
         
         feat2 = self.block2(w=dlatents_in[:, 2:4], x=feat1)
         print("block2 finished", feat2.size())
-        if layer_level == 4: return feat2
+        img2 = self.FadeIN1(feat2, self.upsample(img1), layer_level)
+        if int(layer_level) == 4: 
+            return img2
         
         feat3 = self.block3(w=dlatents_in[:, 4:6], x=feat2)
         print("block3 finished", feat3.size())
-        if layer_level == 5: return feat3
+        img3 = self.FadeIN2(feat3, self.upsample(img2), layer_level)
+        if int(layer_level) == 5:         
+            return img3
         
         feat4 = self.block4(w=dlatents_in[:, 6:8], x=feat3)
         print("block4 finished", feat4.size())
-        if layer_level == 6: return feat4
+        img4 = self.FadeIN3(feat4, self.upsample(img3), layer_level)
+        if int(layer_level) == 6:         
+            return img4
 
         feat5 = self.block5(w=dlatents_in[:, 8:10], x=feat4)
         print("block5 finished", feat5.size())
-        if layer_level == 7: return feat5
+        img5 = self.FadeIN4(feat5, self.upsample(img4), layer_level)
+        if int(layer_level) == 7:         
+            return img5
 
         feat6 = self.block6(w=dlatents_in[:, 10:12], x=feat5)
         print("block6 finished", feat6.size())
-        if layer_level == 8: return feat6
+        img6 = self.FadeIN5(feat6, self.upsample(img5), layer_level)
+        if int(layer_level) == 8:         
+            return img6
 
         feat7 = self.block7(w=dlatents_in[:, 12:14], x=feat6)
         print("block7 finished", feat7.size())
-        if layer_level == 9: return feat7
+        img7 = self.FadeIN6(feat7, self.upsample(img6), layer_level)
+        if int(layer_level) == 9:         
+            return img7
         
 
         return 1
