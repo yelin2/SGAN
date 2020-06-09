@@ -10,9 +10,9 @@ class DataIterator:
 
     def __next__(self):
         try:
-            data, target = next(self._iter)
+            data = next(self._iter)
         except StopIteration:
             self._iter = iter(self.loader)
-            data, target = next(self._iter)
+            data = next(self._iter)
 
-        return data, target
+        return data
