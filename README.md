@@ -1,6 +1,6 @@
 # SGAN
 StyleGAN
-
+It's exploded
 original repository: https://github.com/NVlabs/stylegan
 
 ## Requirments
